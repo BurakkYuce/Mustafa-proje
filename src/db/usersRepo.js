@@ -32,3 +32,11 @@ export function countUsers() {
   const row = getDb().getFirstSync('SELECT COUNT(*) AS c FROM users');
   return row ? row.c : 0;
 }
+
+export function updateName(id, name) {
+  getDb().runSync('UPDATE users SET name = ? WHERE id = ?', [name, id]);
+}
+
+export function updatePassword(id, hashedPassword) {
+  getDb().runSync('UPDATE users SET password = ? WHERE id = ?', [hashedPassword, id]);
+}

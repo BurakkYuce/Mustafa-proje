@@ -8,6 +8,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useAuthStore } from '../../store/authStore';
 import { useEventsStore } from '../../store/eventsStore';
 import { useCategoriesStore } from '../../store/categoriesStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { getById } from '../../db/eventsRepo';
 import { useTheme } from '../../utils/useTheme';
 import { TextField, PrimaryButton } from '../../components/ui';
@@ -57,7 +58,7 @@ export default function EventFormScreen({ route, navigation }) {
   const [categoryId, setCategoryId] = useState(null);
   const [rule, setRule] = useState('none');
   const [recEndDate, setRecEndDate] = useState(null);
-  const [reminder, setReminder] = useState(null);
+  const [reminder, setReminder] = useState(() => useSettingsStore.getState().defaultReminder ?? null);
   const [picker, setPicker] = useState(null); // {field, mode}
   const [saving, setSaving] = useState(false);
 

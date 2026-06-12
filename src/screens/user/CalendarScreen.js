@@ -7,6 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '../../store/authStore';
 import { useEventsStore } from '../../store/eventsStore';
 import { useCategoriesStore } from '../../store/categoriesStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useTheme } from '../../utils/useTheme';
 import { expandMany } from '../../utils/recurrence';
 import {
@@ -28,12 +29,12 @@ LocaleConfig.locales.tr = {
 };
 LocaleConfig.defaultLocale = 'tr';
 
-const WEEK_SHORT = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'];
+const DAY_LABELS = ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt']; // getDay() ile indekslenir
 const DEFAULT_COLOR = '#9ca3af';
 
-function startOfWeek(d) {
+function startOfWeek(d, firstDay) {
   const x = startOfDay(d);
-  const offset = (x.getDay() + 6) % 7; // Pazartesi = 0
+  const offset = (x.getDay() - firstDay + 7) % 7;
   return addDays(x, -offset);
 }
 
@@ -46,8 +47,9 @@ export default function CalendarScreen({ navigation }) {
   const loadCategories = useCategoriesStore((s) => s.load);
   const activeFilter = useCategoriesStore((s) => s.activeFilter);
   const setFilter = useCategoriesStore((s) => s.setFilter);
+  const firstDayOfWeek = useSettingsStore((s) => s.firstDayOfWeek);
 
-  const [viewMode, setViewMode] = useState('day'); // 'day' | 'week' | 'month'
+  const [viewMode, setViewMode] = useState(() => useSettingsStore.getState().defaultView); // 'day' | 'week' | 'month'
   const [selectedDate, setSelectedDate] = useState(() => new Date());
 
   useFocusEffect(
@@ -178,7 +180,7 @@ export default function CalendarScreen({ navigation }) {
           <Calendar
             key={isDark ? 'd' : 'l'}
             current={dateKey(selectedDate)}
-            firstDay={1}
+            firstDay={firstDayOfWeek}
             markingType="multi-dot"
             markedDates={markedDates}
             onDayPress={(d) => setSelectedDate(parseLocal(d.dateString))}
@@ -202,12 +204,12 @@ export default function CalendarScreen({ navigation }) {
           {viewMode === 'week' ? (
             <View style={[styles.weekStrip, { borderColor: colors.border }]}>
               {Array.from({ length: 7 }).map((_, i) => {
-                const d = addDays(startOfWeek(selectedDate), i);
+                const d = addDays(startOfWeek(selectedDate, firstDayOfWeek), i);
                 const sel = dateKey(d) === dateKey(selectedDate);
                 const isToday = dateKey(d) === dateKey(new Date());
                 return (
                   <Pressable key={i} onPress={() => setSelectedDate(d)} style={[styles.weekDay, sel && { backgroundColor: colors.primary }]}>
-                    <Text style={[styles.weekDayName, { color: sel ? '#fff' : colors.subtext }]}>{WEEK_SHORT[i]}</Text>
+                    <Text style={[styles.weekDayName, { color: sel ? '#fff' : colors.subtext }]}>{DAY_LABELS[d.getDay()]}</Text>
                     <Text style={[styles.weekDayNum, { color: sel ? '#fff' : isToday ? colors.primary : colors.text }]}>
                       {d.getDate()}
                     </Text>

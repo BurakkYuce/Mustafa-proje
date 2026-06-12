@@ -12,7 +12,7 @@ function sanitize(u) {
   return { id: u.id, name: u.name, email: u.email, role: u.role, created_at: u.created_at };
 }
 
-export const useAuthStore = create((set) => ({
+export const useAuthStore = create((set, get) => ({
   currentUser: null,
   loading: true,
 
@@ -52,6 +52,30 @@ export const useAuthStore = create((set) => ({
     const id = usersRepo.createUser({ name: n, email: e, password: hashed, role: 'user' });
     await AsyncStorage.setItem(SESSION_KEY, String(id));
     set({ currentUser: { id, name: n, email: e, role: 'user' } });
+    return { ok: true };
+  },
+
+  // Profil: ad güncelle
+  updateName: async (name) => {
+    const n = String(name).trim();
+    if (!n) return { ok: false, error: 'Ad boş olamaz' };
+    const u = get().currentUser;
+    if (!u) return { ok: false, error: 'Oturum yok' };
+    usersRepo.updateName(u.id, n);
+    set({ currentUser: { ...u, name: n } });
+    return { ok: true };
+  },
+
+  // Profil: şifre değiştir (mevcut şifre doğrulanır)
+  changePassword: async (current, next) => {
+    const u = get().currentUser;
+    if (!u) return { ok: false, error: 'Oturum yok' };
+    if (!next || next.length < 4) return { ok: false, error: 'Yeni şifre en az 4 karakter olmalı' };
+    const full = usersRepo.getUserById(u.id);
+    const curHash = await hashPassword(current);
+    if (!full || full.password !== curHash) return { ok: false, error: 'Mevcut şifre hatalı' };
+    const newHash = await hashPassword(next);
+    usersRepo.updatePassword(u.id, newHash);
     return { ok: true };
   },
 

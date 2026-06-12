@@ -7,7 +7,8 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ajanda.takip"
     },
     "android": {
       "package": "com.ajanda.takip",
@@ -31,7 +32,24 @@
         }
       ],
       "@react-native-community/datetimepicker",
-      "expo-font"
+      "expo-font",
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "Today",
+              "label": "Ajanda — Bugün",
+              "minWidth": "180dp",
+              "minHeight": "110dp",
+              "description": "Bugünün etkinlikleri",
+              "previewImage": "./assets/icon.png",
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 0
+            }
+          ]
+        }
+      ]
     ],
     "extra": {
       "eas": {

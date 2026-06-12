@@ -11,6 +11,7 @@ import { setupNotifications, rescheduleUserReminders } from './src/services/noti
 import { useAuthStore } from './src/store/authStore';
 import { useSettingsStore } from './src/store/settingsStore';
 import { getNavTheme, getColors } from './src/utils/theme';
+import { updateTodayWidget } from './src/widget/updateWidget';
 import RootNavigator from './src/navigation/RootNavigator';
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
         await setupNotifications(); // bildirim kanalı + izin
         const user = useAuthStore.getState().currentUser;
         if (user) await rescheduleUserReminders(user.id); // tekrarlayanları tazele
+        await updateTodayWidget(); // açılışta widget'ı bugüne çek (Android; iOS no-op)
       } catch (e) {
         console.error('Başlatma hatası:', e);
       } finally {
