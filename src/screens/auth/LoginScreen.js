@@ -19,9 +19,16 @@ export default function LoginScreen({ navigation }) {
   const onSubmit = async () => {
     setError('');
     setLoading(true);
-    const res = await login(email, password);
-    setLoading(false);
-    if (!res.ok) setError(res.error);
+    try {
+      const res = await login(email, password);
+      if (!res.ok) setError(res.error);
+    } catch (e) {
+      // login() beklenmedik bir hata fırlatırsa buton sonsuza dek "yükleniyor"da
+      // kalmasın; hatayı görünür kıl (sessiz takılma yerine).
+      setError('Giriş sırasında hata: ' + (e?.message || 'bilinmeyen'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Switch } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
-import { getAllUsers } from '../../db/usersRepo';
+import { getAllUsers, setActive } from '../../db/usersRepo';
 import { useTheme } from '../../utils/useTheme';
 import Empty from '../../components/Empty';
 
@@ -16,6 +16,11 @@ export default function UserListScreen() {
     }, [])
   );
 
+  const toggleActive = (u) => {
+    setActive(u.id, u.is_active ? 0 : 1);
+    setUsers(getAllUsers());
+  };
+
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={{ padding: 14 }}>
       {users.length === 0 ? (
@@ -23,20 +28,30 @@ export default function UserListScreen() {
       ) : (
         users.map((u) => {
           const isAdmin = u.role === 'admin';
+          const inactive = u.is_active === 0;
           return (
-            <View key={u.id} style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View key={u.id} style={[styles.row, { backgroundColor: colors.card, borderColor: colors.border, opacity: inactive ? 0.55 : 1 }]}>
               <View style={[styles.avatar, { backgroundColor: isAdmin ? colors.danger : colors.primary }]}>
                 <Text style={styles.avatarText}>{(u.name || '?').charAt(0).toUpperCase()}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.name, { color: colors.text }]}>{u.name}</Text>
                 <Text style={[styles.email, { color: colors.subtext }]}>{u.email}</Text>
+                <View style={[styles.badge, { backgroundColor: (isAdmin ? colors.danger : colors.primary) + '22', alignSelf: 'flex-start', marginTop: 4 }]}>
+                  <Text style={[styles.badgeText, { color: isAdmin ? colors.danger : colors.primary }]}>
+                    {isAdmin ? 'Admin' : inactive ? 'Pasif' : 'Aktif'}
+                  </Text>
+                </View>
               </View>
-              <View style={[styles.badge, { backgroundColor: (isAdmin ? colors.danger : colors.primary) + '22' }]}>
-                <Text style={[styles.badgeText, { color: isAdmin ? colors.danger : colors.primary }]}>
-                  {isAdmin ? 'Admin' : 'Kullanıcı'}
-                </Text>
-              </View>
+              {/* Admin hesabı kilitlenmesin diye yalnızca normal kullanıcılarda toggle */}
+              {!isAdmin && (
+                <Switch
+                  value={!inactive}
+                  onValueChange={() => toggleActive(u)}
+                  trackColor={{ true: colors.success, false: colors.border }}
+                  thumbColor="#fff"
+                />
+              )}
             </View>
           );
         })

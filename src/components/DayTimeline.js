@@ -100,7 +100,7 @@ export default function DayTimeline({ date, occurrences, colorOf, onCreate, onPr
         contentContainerStyle={{ height: CONTENT_HEIGHT }}
         showsVerticalScrollIndicator={false}
       >
-        <View style={{ height: CONTENT_HEIGHT }} {...panResponder.panHandlers}>
+        <View style={{ height: CONTENT_HEIGHT }}>
           {/* Saat çizgileri + dokunulabilir slotlar */}
           {Array.from({ length: 24 }).map((_, h) => (
             <View key={h} style={[styles.hourRow, { top: h * HOUR_HEIGHT, borderColor: colors.timelineLine }]}>
@@ -168,6 +168,16 @@ export default function DayTimeline({ date, occurrences, colorOf, onCreate, onPr
               ]}
             />
           )}
+
+          {/* Sürükleme overlay'i: yalnızca sürükle modunda, tüm içeriği kaplar.
+              Böylece dokunulan hedef hep bu tam-yükseklikli view olur ve
+              locationY 24 saatlik içeriğe göreli gelir (tek saate değil). */}
+          {dragMode && (
+            <View
+              style={styles.dragOverlay}
+              {...panResponder.panHandlers}
+            />
+          )}
         </View>
       </ScrollView>
     </View>
@@ -225,5 +235,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 2,
     borderStyle: 'dashed',
+  },
+  dragOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: CONTENT_HEIGHT,
+    zIndex: 20,
   },
 });

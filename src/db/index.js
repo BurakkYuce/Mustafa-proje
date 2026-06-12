@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS users (
   email TEXT UNIQUE NOT NULL,
   password TEXT NOT NULL,
   role TEXT CHECK(role IN ('user','admin')) DEFAULT 'user',
+  is_active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT DEFAULT (datetime('now'))
 );
 
@@ -49,6 +50,7 @@ CREATE TABLE IF NOT EXISTS events (
   recurrence_end_date TEXT,
   reminder_offset_minutes INTEGER,
   notification_id TEXT,
+  location TEXT,
   created_at TEXT DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (category_id) REFERENCES categories(id)
@@ -59,7 +61,22 @@ CREATE TABLE IF NOT EXISTS events (
 export async function initDatabase() {
   const db = getDb();
   db.execSync(SCHEMA_SQL);
+  migrate(db); // mevcut kurulumlara yeni kolonları ekle
   await seedAdmin();
+}
+
+// Şema değiştikçe eski DB'lere eksik kolonları güvenle ekle (idempotent).
+// CREATE TABLE IF NOT EXISTS eski tabloyu değiştirmediği için ALTER gerekir.
+function migrate(db) {
+  const colNames = (table) =>
+    db.getAllSync(`PRAGMA table_info(${table})`).map((c) => c.name);
+
+  if (!colNames('users').includes('is_active')) {
+    db.execSync('ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1');
+  }
+  if (!colNames('events').includes('location')) {
+    db.execSync('ALTER TABLE events ADD COLUMN location TEXT');
+  }
 }
 
 // Varsayılan admin hesabını oluştur (yoksa).

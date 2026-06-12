@@ -34,13 +34,33 @@ export const darkColors = {
   timelineLine: '#2a2e37',
 };
 
-export function getColors(isDark) {
-  return isDark ? darkColors : lightColors;
+// Renk temaları: her biri açık/koyu mod için bir accent (primary) tonu verir.
+// primary tüm vurguları (buton, FAB, aktif sekme, başlık) sürdüğü için tema
+// belirgin biçimde değişir; arka plan/kart nötr kalır (okunabilirlik için).
+export const THEME_DEFS = {
+  default: { name: 'Mavi', light: '#2563eb', dark: '#3b82f6' },
+  ocean: { name: 'Okyanus', light: '#0891b2', dark: '#22d3ee' },
+  forest: { name: 'Orman', light: '#16a34a', dark: '#34d399' },
+  sunset: { name: 'Gün Batımı', light: '#ea580c', dark: '#fb923c' },
+  grape: { name: 'Üzüm', light: '#7c3aed', dark: '#a78bfa' },
+};
+
+// Settings UI için: [{ key, name, color }]
+export const THEME_LIST = Object.entries(THEME_DEFS).map(([key, v]) => ({
+  key,
+  name: v.name,
+  color: v.light,
+}));
+
+export function getColors(isDark, theme = 'default') {
+  const base = isDark ? darkColors : lightColors;
+  const def = THEME_DEFS[theme] || THEME_DEFS.default;
+  return { ...base, primary: isDark ? def.dark : def.light };
 }
 
 // React Navigation container teması
-export function getNavTheme(isDark) {
-  const c = getColors(isDark);
+export function getNavTheme(isDark, theme = 'default') {
+  const c = getColors(isDark, theme);
   const base = isDark ? NavDark : NavDefault;
   return {
     ...base,

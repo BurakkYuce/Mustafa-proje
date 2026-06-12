@@ -9,6 +9,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { useEventsStore } from '../../store/eventsStore';
 import { useCategoriesStore } from '../../store/categoriesStore';
 import { useTheme } from '../../utils/useTheme';
+import { THEME_LIST } from '../../utils/theme';
 import { TextField, PrimaryButton } from '../../components/ui';
 import { exportUserData, importUserData } from '../../services/backupService';
 import { rescheduleUserReminders } from '../../services/notificationService';
@@ -32,12 +33,13 @@ const REMINDERS = [
 ];
 
 export default function SettingsScreen() {
-  const { colors, isDark } = useTheme();
+  const { colors, isDark, colorTheme } = useTheme();
   const user = useAuthStore((s) => s.currentUser);
   const logout = useAuthStore((s) => s.logout);
   const updateName = useAuthStore((s) => s.updateName);
   const changePassword = useAuthStore((s) => s.changePassword);
 
+  const setColorTheme = useSettingsStore((s) => s.setColorTheme);
   const toggleTheme = useSettingsStore((s) => s.toggleTheme);
   const firstDayOfWeek = useSettingsStore((s) => s.firstDayOfWeek);
   const setFirstDayOfWeek = useSettingsStore((s) => s.setFirstDayOfWeek);
@@ -188,6 +190,31 @@ export default function SettingsScreen() {
         <Switch value={isDark} onValueChange={toggleTheme} trackColor={{ true: colors.primary, false: colors.border }} thumbColor="#fff" />
       </View>
 
+      {/* Renk teması */}
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.rowLabel, { color: colors.text }]}>Renk teması</Text>
+        <View style={styles.themeWrap}>
+          {THEME_LIST.map((t) => {
+            const active = colorTheme === t.key;
+            return (
+              <Pressable key={t.key} onPress={() => setColorTheme(t.key)} style={styles.themeItem}>
+                <View
+                  style={[
+                    styles.swatch,
+                    { backgroundColor: t.color, borderColor: active ? colors.text : 'transparent' },
+                  ]}
+                >
+                  {active && <Ionicons name="checkmark" size={20} color="#fff" />}
+                </View>
+                <Text style={[styles.swatchLabel, { color: active ? colors.text : colors.subtext }]}>
+                  {t.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
       {/* Yedekleme */}
       <Text style={[styles.section, { color: colors.subtext }]}>TAKVİMİM (YEDEK)</Text>
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border, gap: 12 }]}>
@@ -236,6 +263,10 @@ const styles = StyleSheet.create({
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderWidth: 1.5, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6 },
   chipText: { fontSize: 13, fontWeight: '600' },
+  themeWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 2 },
+  themeItem: { alignItems: 'center', gap: 6, width: 56 },
+  swatch: { width: 44, height: 44, borderRadius: 22, borderWidth: 3, alignItems: 'center', justifyContent: 'center' },
+  swatchLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center' },
   rowCard: { flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderRadius: 14, padding: 16 },
   rowText: { flex: 1, fontSize: 16, fontWeight: '600' },
   desc: { fontSize: 13, lineHeight: 19 },

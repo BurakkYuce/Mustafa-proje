@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, Pressable, StyleSheet, Alert, Platform,
+  View, Text, ScrollView, Pressable, StyleSheet, Alert, Platform, TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -12,6 +12,7 @@ import { useSettingsStore } from '../../store/settingsStore';
 import { getById } from '../../db/eventsRepo';
 import { useTheme } from '../../utils/useTheme';
 import { TextField, PrimaryButton } from '../../components/ui';
+import { shareEventAsIcs } from '../../services/icsService';
 import { parseLocal, formatLocal, formatDate, formatTime } from '../../utils/dateUtils';
 
 const RULES = [
@@ -32,6 +33,34 @@ const REMINDERS = [
   [1440, '1 gün önce'],
 ];
 
+// Elle saat girişi: "HH:MM", "HHMM" veya "HMM" kabul eder; geçersizse null döner.
+// Geçerliyse verilen tarihin saat/dakikasını günceller (yeni Date döndürür).
+function parseTimeOnto(base, str) {
+  const s = String(str).trim();
+  let h;
+  let mi;
+  const colon = /^(\d{1,2}):(\d{1,2})$/.exec(s);
+  if (colon) {
+    h = Number(colon[1]);
+    mi = Number(colon[2]);
+  } else {
+    const digits = s.replace(/\D/g, '');
+    if (digits.length === 3) {
+      h = Number(digits.slice(0, 1));
+      mi = Number(digits.slice(1));
+    } else if (digits.length === 4) {
+      h = Number(digits.slice(0, 2));
+      mi = Number(digits.slice(2));
+    } else {
+      return null;
+    }
+  }
+  if (!(h >= 0 && h <= 23 && mi >= 0 && mi <= 59)) return null;
+  const d = new Date(base);
+  d.setHours(h, mi, 0, 0);
+  return d;
+}
+
 export default function EventFormScreen({ route, navigation }) {
   const { colors } = useTheme();
   const user = useAuthStore((s) => s.currentUser);
@@ -47,6 +76,7 @@ export default function EventFormScreen({ route, navigation }) {
   const [original, setOriginal] = useState(null); // edit: ham DB satırı (notification_id için)
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
   const [startDate, setStartDate] = useState(() =>
     route.params?.startISO ? parseLocal(route.params.startISO) : new Date()
   );
@@ -71,14 +101,19 @@ export default function EventFormScreen({ route, navigation }) {
     if (isEdit && route.params?.eventId) {
       const ev = getById(route.params.eventId);
       if (ev) {
+        // parseLocal bozuk/eksik veride null dönebilir; geçersiz Date state'e girmesin.
+        const safe = (d, fb) => (d instanceof Date && !isNaN(d.getTime()) ? d : fb);
+        const s = safe(parseLocal(ev.start_time), new Date());
+        const e = safe(ev.end_time ? parseLocal(ev.end_time) : null, s);
         setOriginal(ev);
         setTitle(ev.title);
         setDescription(ev.description || '');
-        setStartDate(parseLocal(ev.start_time));
-        setEndDate(ev.end_time ? parseLocal(ev.end_time) : parseLocal(ev.start_time));
+        setLocation(ev.location || '');
+        setStartDate(s);
+        setEndDate(e);
         setCategoryId(ev.category_id ?? null);
         setRule(ev.recurrence_rule || 'none');
-        setRecEndDate(ev.recurrence_end_date ? parseLocal(ev.recurrence_end_date) : null);
+        setRecEndDate(safe(ev.recurrence_end_date ? parseLocal(ev.recurrence_end_date) : null, null));
         setReminder(ev.reminder_offset_minutes ?? null);
       }
     }
@@ -98,18 +133,33 @@ export default function EventFormScreen({ route, navigation }) {
     ]);
   };
 
+  // .ics olarak paylaş (kaydedilmiş hali). Karşı taraf kendi takvimine ekler.
+  const onShare = async () => {
+    if (!original) return;
+    try {
+      await shareEventAsIcs(original);
+    } catch (e) {
+      Alert.alert('Hata', 'Paylaşım başarısız: ' + (e?.message || ''));
+    }
+  };
+
   useLayoutEffect(() => {
     navigation.setOptions({
       title: isEdit ? 'Etkinliği Düzenle' : 'Yeni Etkinlik',
       headerRight: isEdit
         ? () => (
-            <Pressable onPress={onDelete} hitSlop={12} style={{ marginRight: 6 }}>
-              <Ionicons name="trash-outline" size={22} color={colors.danger} />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18, marginRight: 8 }}>
+              <Pressable onPress={onShare} hitSlop={12}>
+                <Ionicons name="share-outline" size={22} color={colors.primary} />
+              </Pressable>
+              <Pressable onPress={onDelete} hitSlop={12}>
+                <Ionicons name="trash-outline" size={22} color={colors.danger} />
+              </Pressable>
+            </View>
           )
         : undefined,
     });
-  }, [navigation, isEdit, colors.danger, original]);
+  }, [navigation, isEdit, colors.danger, colors.primary, original]);
 
   const applyPicked = (picked) => {
     if (!picker || !picked) return;
@@ -134,11 +184,27 @@ export default function EventFormScreen({ route, navigation }) {
     }
   };
 
+  // DateTimePicker'a ASLA geçersiz/null Date gitmemeli: Android'de native picker
+  // geçersiz value ile çöker (gece yarısı/bozuk veri kaynaklı en olası native crash).
+  const safeDate = (d) => (d instanceof Date && !isNaN(d.getTime()) ? d : new Date());
+
   const pickerValue = () => {
     if (!picker) return new Date();
-    if (picker.field === 'start') return startDate;
-    if (picker.field === 'end') return endDate;
-    return recEndDate || startDate;
+    if (picker.field === 'start') return safeDate(startDate);
+    if (picker.field === 'end') return safeDate(endDate);
+    return safeDate(recEndDate || startDate);
+  };
+
+  // Elle saat girişi (HH:MM). Geçersizse sessizce yok say (input eski değere döner).
+  const setStartTime = (str) => {
+    const ns = parseTimeOnto(startDate, str);
+    if (!ns) return;
+    setStartDate(ns);
+    if (endDate <= ns) setEndDate(new Date(ns.getTime() + 60 * 60 * 1000));
+  };
+  const setEndTime = (str) => {
+    const ne = parseTimeOnto(endDate, str);
+    if (ne) setEndDate(ne);
   };
 
   const onSave = async () => {
@@ -155,6 +221,7 @@ export default function EventFormScreen({ route, navigation }) {
       category_id: categoryId,
       title: title.trim(),
       description: description.trim() || null,
+      location: location.trim() || null,
       start_time: formatLocal(startDate),
       end_time: formatLocal(endDate),
       recurrence_rule: rule,
@@ -186,8 +253,16 @@ export default function EventFormScreen({ route, navigation }) {
         style={{ minHeight: 70, textAlignVertical: 'top' }}
       />
 
-      <DateRow label="Başlangıç" date={startDate} field="start" colors={colors} onPick={setPicker} />
-      <DateRow label="Bitiş" date={endDate} field="end" colors={colors} onPick={setPicker} />
+      <TextField
+        label="Konum"
+        colors={colors}
+        value={location}
+        onChangeText={setLocation}
+        placeholder="(isteğe bağlı) örn. A Blok, Sınıf 204"
+      />
+
+      <DateRow label="Başlangıç" date={startDate} field="start" colors={colors} onPick={setPicker} onSetTime={setStartTime} />
+      <DateRow label="Bitiş" date={endDate} field="end" colors={colors} onPick={setPicker} onSetTime={setEndTime} />
 
       {/* Kategori */}
       <View>
@@ -260,7 +335,15 @@ export default function EventFormScreen({ route, navigation }) {
   );
 }
 
-function DateRow({ label, date, field, colors, onPick }) {
+function DateRow({ label, date, field, colors, onPick, onSetTime }) {
+  // Elle giriş için yerel metin; dışarıdan (picker) tarih değişince senkronla.
+  const [timeStr, setTimeStr] = useState(formatTime(date));
+  useEffect(() => {
+    setTimeStr(formatTime(date));
+  }, [date]);
+
+  const commit = () => onSetTime(timeStr); // geçersizse handler yok sayar; useEffect geri alır
+
   return (
     <View style={styles.dateRow}>
       <Text style={[styles.dateLabel, { color: colors.subtext }]}>{label}</Text>
@@ -272,13 +355,25 @@ function DateRow({ label, date, field, colors, onPick }) {
           <Ionicons name="calendar-outline" size={15} color={colors.primary} />
           <Text style={[styles.dateBtnText, { color: colors.text }]}>{formatDate(date)}</Text>
         </Pressable>
-        <Pressable
-          onPress={() => onPick({ field, mode: 'time' })}
-          style={[styles.dateBtn, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
-        >
+
+        {/* Saat: elle yazılabilir (HH:MM); chevron ile picker da açılır */}
+        <View style={[styles.dateBtn, { backgroundColor: colors.inputBg, borderColor: colors.border }]}>
           <Ionicons name="time-outline" size={15} color={colors.primary} />
-          <Text style={[styles.dateBtnText, { color: colors.text }]}>{formatTime(date)}</Text>
-        </Pressable>
+          <TextInput
+            value={timeStr}
+            onChangeText={setTimeStr}
+            onEndEditing={commit}
+            onSubmitEditing={commit}
+            keyboardType="numbers-and-punctuation"
+            maxLength={5}
+            placeholder="SS:DD"
+            placeholderTextColor={colors.subtext}
+            style={[styles.timeInput, { color: colors.text }]}
+          />
+          <Pressable onPress={() => onPick({ field, mode: 'time' })} hitSlop={8}>
+            <Ionicons name="chevron-down" size={16} color={colors.subtext} />
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -308,6 +403,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11,
   },
   dateBtnText: { fontSize: 14, fontWeight: '600', flexShrink: 1 },
+  timeInput: { flex: 1, fontSize: 14, fontWeight: '600', paddingVertical: 0 },
   sectionLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { borderWidth: 1.5, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 7 },

@@ -12,11 +12,13 @@ import { useAuthStore } from './src/store/authStore';
 import { useSettingsStore } from './src/store/settingsStore';
 import { getNavTheme, getColors } from './src/utils/theme';
 import { updateTodayWidget } from './src/widget/updateWidget';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import RootNavigator from './src/navigation/RootNavigator';
 
 export default function App() {
   const [ready, setReady] = useState(false);
   const isDark = useSettingsStore((s) => s.isDark);
+  const colorTheme = useSettingsStore((s) => s.colorTheme);
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const restoreSession = useAuthStore((s) => s.restoreSession);
 
@@ -39,7 +41,7 @@ export default function App() {
   }, [loadSettings, restoreSession]);
 
   if (!ready) {
-    const c = getColors(isDark);
+    const c = getColors(isDark, colorTheme);
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.background }}>
         <ActivityIndicator size="large" color={c.primary} />
@@ -48,11 +50,13 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <NavigationContainer theme={getNavTheme(isDark)}>
-        <StatusBar style={isDark ? 'light' : 'dark'} />
-        <RootNavigator />
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <NavigationContainer theme={getNavTheme(isDark, colorTheme)}>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <RootNavigator />
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

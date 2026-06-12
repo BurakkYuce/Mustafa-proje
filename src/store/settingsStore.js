@@ -7,6 +7,7 @@ const K = {
   fdow: 'settings.firstDayOfWeek',
   view: 'settings.defaultView',
   reminder: 'settings.defaultReminder',
+  theme: 'settings.colorTheme',
 };
 
 export const useSettingsStore = create((set, get) => ({
@@ -14,11 +15,12 @@ export const useSettingsStore = create((set, get) => ({
   firstDayOfWeek: 1, // 1 = Pazartesi, 0 = Pazar
   defaultView: 'day', // 'day' | 'week' | 'month'
   defaultReminder: null, // dakika ya da null
+  colorTheme: 'default', // 'default' | 'ocean' | 'forest' | 'sunset' | 'grape'
   loaded: false,
 
   loadSettings: async () => {
     try {
-      const entries = await AsyncStorage.multiGet([K.dark, K.fdow, K.view, K.reminder]);
+      const entries = await AsyncStorage.multiGet([K.dark, K.fdow, K.view, K.reminder, K.theme]);
       const m = Object.fromEntries(entries);
       set({
         isDark: m[K.dark] === '1',
@@ -26,6 +28,7 @@ export const useSettingsStore = create((set, get) => ({
         defaultView: m[K.view] || 'day',
         defaultReminder:
           m[K.reminder] != null && m[K.reminder] !== '' ? Number(m[K.reminder]) : null,
+        colorTheme: m[K.theme] || 'default',
         loaded: true,
       });
     } catch (e) {
@@ -52,5 +55,10 @@ export const useSettingsStore = create((set, get) => ({
   setDefaultReminder: (mins) => {
     AsyncStorage.setItem(K.reminder, mins == null ? '' : String(mins)).catch(() => {});
     set({ defaultReminder: mins });
+  },
+
+  setColorTheme: (theme) => {
+    AsyncStorage.setItem(K.theme, theme).catch(() => {});
+    set({ colorTheme: theme });
   },
 }));

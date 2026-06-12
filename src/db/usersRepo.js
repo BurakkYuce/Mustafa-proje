@@ -24,8 +24,13 @@ export function getUserById(id) {
 // Admin paneli — şifre alanı hariç tüm kullanıcılar.
 export function getAllUsers() {
   return getDb().getAllSync(
-    'SELECT id, name, email, role, created_at FROM users ORDER BY id ASC'
+    'SELECT id, name, email, role, is_active, created_at FROM users ORDER BY id ASC'
   );
+}
+
+// Admin: kullanıcıyı aktif/pasif yap (pasif kullanıcı giriş yapamaz).
+export function setActive(id, active) {
+  getDb().runSync('UPDATE users SET is_active = ? WHERE id = ?', [active ? 1 : 0, id]);
 }
 
 export function countUsers() {

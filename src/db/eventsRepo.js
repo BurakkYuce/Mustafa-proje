@@ -16,8 +16,8 @@ export function createEvent(e) {
   const res = getDb().runSync(
     `INSERT INTO events
       (user_id, category_id, title, description, start_time, end_time,
-       recurrence_rule, recurrence_end_date, reminder_offset_minutes, notification_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       recurrence_rule, recurrence_end_date, reminder_offset_minutes, notification_id, location)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       e.user_id,
       e.category_id ?? null,
@@ -29,6 +29,7 @@ export function createEvent(e) {
       e.recurrence_end_date ?? null,
       e.reminder_offset_minutes ?? null,
       e.notification_id ?? null,
+      e.location ?? null,
     ]
   );
   return res.lastInsertRowId;
@@ -39,7 +40,7 @@ export function updateEvent(id, e) {
     `UPDATE events SET
        category_id = ?, title = ?, description = ?, start_time = ?, end_time = ?,
        recurrence_rule = ?, recurrence_end_date = ?, reminder_offset_minutes = ?,
-       notification_id = ?
+       notification_id = ?, location = ?
      WHERE id = ?`,
     [
       e.category_id ?? null,
@@ -51,6 +52,7 @@ export function updateEvent(id, e) {
       e.recurrence_end_date ?? null,
       e.reminder_offset_minutes ?? null,
       e.notification_id ?? null,
+      e.location ?? null,
       id,
     ]
   );

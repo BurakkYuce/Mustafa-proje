@@ -28,6 +28,7 @@ Notifications.setNotificationHandler({
 });
 
 const CHANNEL_ID = 'reminders';
+const ALARM_CHANNEL = 'alarms';
 const MAX_SCHEDULED = 30; // bitişli seride bir etkinlik için üst sınır
 const T = Notifications.SchedulableTriggerInputTypes;
 
@@ -40,6 +41,14 @@ export async function setupNotifications() {
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#2563eb',
+      });
+      // Alarm + zamanlayıcı için ayrı, sesli ve yüksek öncelikli kanal.
+      await Notifications.setNotificationChannelAsync(ALARM_CHANNEL, {
+        name: 'Alarmlar & Zamanlayıcı',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 500, 500, 500],
+        lightColor: '#2563eb',
+        sound: 'default',
       });
     }
     let { status } = await Notifications.getPermissionsAsync();
@@ -56,9 +65,13 @@ export async function setupNotifications() {
 // ---- Yardımcılar ----
 
 function buildContent(event) {
+  // Açıklama + (varsa) konum bilgisini bildirim gövdesinde göster.
+  const parts = [];
+  if (event.description) parts.push(event.description);
+  if (event.location) parts.push(`📍 ${event.location}`);
   return {
     title: event.title || 'Hatırlatıcı',
-    body: event.description || 'Yaklaşan etkinlik',
+    body: parts.length ? parts.join('\n') : 'Yaklaşan etkinlik',
     data: { eventId: event.id },
   };
 }
@@ -68,6 +81,11 @@ const androidChannel = Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {
 function dateTrigger(date) {
   return { type: T.DATE, date, ...androidChannel };
 }
+
+// Geçersiz bir Date'i native katmana ASLA geçirme: scheduleNotificationAsync'e
+// Invalid Date verilirse native taraf çöker ve bu çökme JS try/catch ile yakalanamaz.
+const isValidDate = (d) => d instanceof Date && !isNaN(d.getTime());
+const isFiniteInt = (n) => Number.isFinite(n);
 
 // Hatırlatıcı anının saat bileşenleri: başlangıç − offset. Bu bileşenler
 // (haftalıkta weekday+saat, günlükte saat, aylıkta gün) tüm occurrence'larda aynıdır.
@@ -122,7 +140,7 @@ export async function scheduleEventReminders(event) {
     // 1) Tek seferlik -> sonraki occurrence için tek DATE.
     if (rule === 'none') {
       const fireDate = computeNextReminderDate(event);
-      if (!fireDate) return [];
+      if (!isValidDate(fireDate)) return [];
       const id = await Notifications.scheduleNotificationAsync({
         content: buildContent(event),
         trigger: dateTrigger(fireDate),
@@ -133,7 +151,9 @@ export async function scheduleEventReminders(event) {
     // 2) Tekrarlayan + bitiş YOK -> native tekrarlayan trigger (sonsuza dek).
     if (!event.recurrence_end_date) {
       const c = reminderComponents(event);
-      const trigger = c && buildRepeatingTrigger(rule, c);
+      // Saat bileşenleri sayısal ve geçerli değilse native'e gönderme.
+      const valid = c && isFiniteInt(c.hour) && isFiniteInt(c.minute) && isFiniteInt(c.weekday) && isFiniteInt(c.day);
+      const trigger = valid && buildRepeatingTrigger(rule, c);
       if (!trigger) return [];
       const id = await Notifications.scheduleNotificationAsync({
         content: buildContent(event),
@@ -150,7 +170,7 @@ export async function scheduleEventReminders(event) {
     const ids = [];
     for (const occ of occurrences) {
       const remindAt = new Date(occ.start.getTime() - offsetMs);
-      if (remindAt <= now) continue;
+      if (!isValidDate(remindAt) || remindAt <= now) continue;
       const id = await Notifications.scheduleNotificationAsync({
         content: buildContent(event),
         trigger: dateTrigger(remindAt),
@@ -201,5 +221,67 @@ export async function rescheduleUserReminders(userId) {
     }
   } catch (e) {
     console.warn('Hatırlatıcılar yeniden planlanamadı:', e);
+  }
+}
+
+// ---- Alarm & Zamanlayıcı (Saat sekmesi) ----
+
+const alarmChannel = Platform.OS === 'android' ? { channelId: ALARM_CHANNEL } : {};
+
+// Verilen saat:dakika için bir sonraki tetiklenme tarihini bul (bugün geçtiyse yarın).
+function nextTimeOccurrence(hour, minute) {
+  const now = new Date();
+  const d = new Date(now);
+  d.setHours(hour, minute, 0, 0);
+  if (d <= now) d.setDate(d.getDate() + 1);
+  return d;
+}
+
+// Alarmı planla; bildirim id'sini döndür. repeat: 'daily' -> native günlük tekrar,
+// 'once' -> bir sonraki saat:dakika için tek seferlik.
+export async function scheduleAlarm(alarm) {
+  try {
+    if (!isFiniteInt(alarm.hour) || !isFiniteInt(alarm.minute)) return null;
+    const content = {
+      title: alarm.label?.trim() || 'Alarm',
+      body: 'Alarm zamanı',
+      data: { type: 'alarm' },
+    };
+    let trigger;
+    if (alarm.repeat === 'daily') {
+      trigger = { type: T.DAILY, hour: alarm.hour, minute: alarm.minute, ...alarmChannel };
+    } else {
+      const fire = nextTimeOccurrence(alarm.hour, alarm.minute);
+      if (!isValidDate(fire)) return null;
+      trigger = { type: T.DATE, date: fire, ...alarmChannel };
+    }
+    return await Notifications.scheduleNotificationAsync({ content, trigger });
+  } catch (e) {
+    console.warn('Alarm planlanamadı:', e);
+    return null;
+  }
+}
+
+// Zamanlayıcı için belirli bir ana tek seferlik bildirim (arka planda da çalsın diye).
+export async function scheduleOneShot(fireDate, title, body) {
+  try {
+    if (!isValidDate(fireDate)) return null;
+    return await Notifications.scheduleNotificationAsync({
+      content: { title, body, data: { type: 'timer' } },
+      trigger: { type: T.DATE, date: fireDate, ...alarmChannel },
+    });
+  } catch (e) {
+    console.warn('Zamanlayıcı bildirimi planlanamadı:', e);
+    return null;
+  }
+}
+
+// Tek bir bildirimi id ile iptal et (alarm/zamanlayıcı için).
+export async function cancelNotif(id) {
+  if (!id) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(id);
+  } catch (e) {
+    // zaten yoksa sorun değil
   }
 }

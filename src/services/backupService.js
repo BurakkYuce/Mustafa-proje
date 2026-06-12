@@ -160,12 +160,12 @@ function restoreUserData(userId, data) {
       db.runSync(
         `INSERT INTO events
           (user_id, category_id, title, description, start_time, end_time,
-           recurrence_rule, recurrence_end_date, reminder_offset_minutes, notification_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           recurrence_rule, recurrence_end_date, reminder_offset_minutes, notification_id, location)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userId, catId, e.title, e.description ?? null, e.start_time, e.end_time ?? null,
           e.recurrence_rule || 'none', e.recurrence_end_date ?? null,
-          e.reminder_offset_minutes ?? null, null,
+          e.reminder_offset_minutes ?? null, null, e.location ?? null,
         ]
       );
     }
@@ -188,8 +188,8 @@ function restoreFromObject(data) {
 
     for (const u of data.users || []) {
       db.runSync(
-        'INSERT INTO users (id, name, email, password, role, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-        [u.id, u.name, u.email, u.password, u.role || 'user', u.created_at ?? null]
+        'INSERT INTO users (id, name, email, password, role, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [u.id, u.name, u.email, u.password, u.role || 'user', u.is_active ?? 1, u.created_at ?? null]
       );
     }
     for (const c of data.categories || []) {
@@ -202,13 +202,13 @@ function restoreFromObject(data) {
       db.runSync(
         `INSERT INTO events
           (id, user_id, category_id, title, description, start_time, end_time,
-           recurrence_rule, recurrence_end_date, reminder_offset_minutes, notification_id, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           recurrence_rule, recurrence_end_date, reminder_offset_minutes, notification_id, location, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           e.id, e.user_id, e.category_id ?? null, e.title, e.description ?? null,
           e.start_time, e.end_time ?? null, e.recurrence_rule || 'none',
           e.recurrence_end_date ?? null, e.reminder_offset_minutes ?? null,
-          e.notification_id ?? null, e.created_at ?? null,
+          e.notification_id ?? null, e.location ?? null, e.created_at ?? null,
         ]
       );
     }

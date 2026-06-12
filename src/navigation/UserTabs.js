@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 
 import CalendarScreen from '../screens/user/CalendarScreen';
+import ClockScreen from '../screens/user/ClockScreen';
 import CategoriesScreen from '../screens/user/CategoriesScreen';
 import SettingsScreen from '../screens/user/SettingsScreen';
 import EventFormScreen from '../screens/user/EventFormScreen';
@@ -15,6 +16,7 @@ const Stack = createNativeStackNavigator();
 
 const ICONS = {
   Takvim: 'calendar',
+  Saat: 'time',
   Kategoriler: 'pricetags',
   Ayarlar: 'settings',
 };
@@ -37,6 +39,7 @@ function Tabs() {
       })}
     >
       <Tab.Screen name="Takvim" component={CalendarScreen} />
+      <Tab.Screen name="Saat" component={ClockScreen} />
       <Tab.Screen name="Kategoriler" component={CategoriesScreen} />
       <Tab.Screen name="Ayarlar" component={SettingsScreen} />
     </Tab.Navigator>

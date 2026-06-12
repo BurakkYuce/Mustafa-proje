@@ -37,6 +37,9 @@ export const useAuthStore = create((set, get) => ({
     if (!user) return { ok: false, error: 'Kullanıcı bulunamadı' };
     const hashed = await hashPassword(password);
     if (user.password !== hashed) return { ok: false, error: 'Şifre hatalı' };
+    if (user.is_active === 0) {
+      return { ok: false, error: 'Hesabınız devre dışı bırakılmış. Yöneticiyle iletişime geçin.' };
+    }
     await AsyncStorage.setItem(SESSION_KEY, String(user.id));
     set({ currentUser: sanitize(user) });
     return { ok: true };
