@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, KeyboardAvoidingView, Platform, Pressable, ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme } from '../../utils/useTheme';
 import { TextField, PrimaryButton } from '../../components/ui';
@@ -25,8 +26,9 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top', 'bottom']}>
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
@@ -66,6 +68,7 @@ export default function RegisterScreen({ navigation }) {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 

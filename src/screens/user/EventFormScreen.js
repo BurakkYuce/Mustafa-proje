@@ -172,28 +172,6 @@ export default function EventFormScreen({ route, navigation }) {
     }
   };
 
-  const DateRow = ({ label, date, field }) => (
-    <View style={styles.dateRow}>
-      <Text style={[styles.dateLabel, { color: colors.subtext }]}>{label}</Text>
-      <View style={styles.dateBtns}>
-        <Pressable
-          onPress={() => setPicker({ field, mode: 'date' })}
-          style={[styles.dateBtn, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
-        >
-          <Ionicons name="calendar-outline" size={15} color={colors.primary} />
-          <Text style={[styles.dateBtnText, { color: colors.text }]}>{formatDate(date)}</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => setPicker({ field, mode: 'time' })}
-          style={[styles.dateBtn, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
-        >
-          <Ionicons name="time-outline" size={15} color={colors.primary} />
-          <Text style={[styles.dateBtnText, { color: colors.text }]}>{formatTime(date)}</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
-
   return (
     <ScrollView style={{ backgroundColor: colors.background }} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <TextField label="Başlık" colors={colors} value={title} onChangeText={setTitle} placeholder="Etkinlik başlığı" />
@@ -207,8 +185,8 @@ export default function EventFormScreen({ route, navigation }) {
         style={{ minHeight: 70, textAlignVertical: 'top' }}
       />
 
-      <DateRow label="Başlangıç" date={startDate} field="start" />
-      <DateRow label="Bitiş" date={endDate} field="end" />
+      <DateRow label="Başlangıç" date={startDate} field="start" colors={colors} onPick={setPicker} />
+      <DateRow label="Bitiş" date={endDate} field="end" colors={colors} onPick={setPicker} />
 
       {/* Kategori */}
       <View>
@@ -278,6 +256,30 @@ export default function EventFormScreen({ route, navigation }) {
         />
       )}
     </ScrollView>
+  );
+}
+
+function DateRow({ label, date, field, colors, onPick }) {
+  return (
+    <View style={styles.dateRow}>
+      <Text style={[styles.dateLabel, { color: colors.subtext }]}>{label}</Text>
+      <View style={styles.dateBtns}>
+        <Pressable
+          onPress={() => onPick({ field, mode: 'date' })}
+          style={[styles.dateBtn, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
+        >
+          <Ionicons name="calendar-outline" size={15} color={colors.primary} />
+          <Text style={[styles.dateBtnText, { color: colors.text }]}>{formatDate(date)}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => onPick({ field, mode: 'time' })}
+          style={[styles.dateBtn, { backgroundColor: colors.inputBg, borderColor: colors.border }]}
+        >
+          <Ionicons name="time-outline" size={15} color={colors.primary} />
+          <Text style={[styles.dateBtnText, { color: colors.text }]}>{formatTime(date)}</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 

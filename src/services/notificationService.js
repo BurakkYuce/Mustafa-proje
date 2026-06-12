@@ -5,6 +5,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { expandRecurrences } from '../utils/recurrence';
+import * as eventsRepo from '../db/eventsRepo';
 
 // Uygulama ön plandayken de bildirim görünsün (SDK 56 alanları).
 Notifications.setNotificationHandler({
@@ -85,5 +86,23 @@ export async function cancelReminder(notificationId) {
     await Notifications.cancelScheduledNotificationAsync(notificationId);
   } catch (e) {
     // zaten yoksa sorun değil
+  }
+}
+
+// Açılışta çağrılır: kullanıcının hatırlatıcılı etkinlikleri için bir sonraki
+// occurrence'ın bildirimini yeniden planlar. Böylece tekrarlayan etkinliklerde
+// bir bildirim düştükten sonra sonraki tekrar da güvence altına alınır
+// (uygulama günlerce açılmasa bile her açılışta tazelenir).
+export async function rescheduleUserReminders(userId) {
+  try {
+    const events = eventsRepo.listByUser(userId);
+    for (const ev of events) {
+      if (ev.reminder_offset_minutes == null) continue;
+      await cancelReminder(ev.notification_id);
+      const notifId = await scheduleReminder(ev);
+      eventsRepo.setNotificationId(ev.id, notifId || null);
+    }
+  } catch (e) {
+    console.warn('Hatırlatıcılar yeniden planlanamadı:', e);
   }
 }

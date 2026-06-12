@@ -7,7 +7,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { initDatabase } from './src/db';
-import { setupNotifications } from './src/services/notificationService';
+import { setupNotifications, rescheduleUserReminders } from './src/services/notificationService';
 import { useAuthStore } from './src/store/authStore';
 import { useSettingsStore } from './src/store/settingsStore';
 import { getNavTheme, getColors } from './src/utils/theme';
@@ -25,7 +25,9 @@ export default function App() {
         await initDatabase();      // şema + admin seed
         await loadSettings();      // dark mode tercihi
         await restoreSession();    // kayıtlı oturum
-        setupNotifications();      // bildirim kanalı + izin (arka planda)
+        await setupNotifications(); // bildirim kanalı + izin
+        const user = useAuthStore.getState().currentUser;
+        if (user) await rescheduleUserReminders(user.id); // tekrarlayanları tazele
       } catch (e) {
         console.error('Başlatma hatası:', e);
       } finally {
